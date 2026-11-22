@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Nextin 正文测试</title>
+  <style>
+    body { font: 1rem/1.6 system-ui, sans-serif; max-width: 34rem; margin: 3rem auto; padding: 0 1.2rem; }
+    h1 { font-size: 1.6rem; }
+    dt { margin-top: 1rem; }
+    dd { margin: .3rem 0; padding: .6rem .8rem; background: color-mix(in srgb, CanvasText 7%, Canvas); border-radius: .5rem; }
+    code { overflow-wrap: anywhere; }
+    button { font: inherit; padding: .45rem 1rem; }
+  </style>
+</head>
+<body>
+  <h1>Nextin 正文测试</h1>
+  <dl>
+    <dt>原始响应</dt><dd><code id="baseline">等待读取</code></dd>
+    <dt>测试响应</dt><dd><code id="probe">等待读取</code></dd>
+  </dl>
+  <p role="status" id="status">读取中…</p>
+  <button type="button" id="repeat">重新检测</button>
+  <script>
+    const baseline = document.querySelector("#baseline");
+    const probe = document.querySelector("#probe");
+    const statusLine = document.querySelector("#status");
+    const repeat = document.querySelector("#repeat");
+
+    async function readFixture(path) {
+      const response = await fetch(path, { cache: "no-store", credentials: "omit" });
+      if (!response.ok) throw new Error("HTTP " + response.status);
+      const fixture = await response.json();
+      if (fixture.fixture !== "nextin-local-v1" || typeof fixture.mockText !== "string") {
+        throw new Error("响应格式不符");
+      }
+      return fixture.mockText;
+    }
+
+    async function check() {
+      repeat.disabled = true;
+      baseline.textContent = probe.textContent = "等待读取";
+      statusLine.textContent = "读取中…";
+      try {
+        const original = await readFixture("./fixture.json");
+        baseline.textContent = original;
+        const tested = await readFixture("./fixture.json?test=1");
+        probe.textContent = tested;
+        if (original !== "30tb.ai.pro.m | 20tb.m.v2") {
+          statusLine.textContent = "原始响应异常，请检查规则匹配范围";
+        } else if (tested === "30tb.m | 20tb.m") {
+          statusLine.textContent = "已观察到两条替换";
+        } else if (tested === original) {
+          statusLine.textContent = "两次响应相同";
+        } else {
+          statusLine.textContent = "测试响应与预期不符";
+        }
+      } catch (error) {
+        statusLine.textContent = "读取失败：" + error.message;
+      } finally {
+        repeat.disabled = false;
+      }
+    }
+
+    repeat.addEventListener("click", check);
+    check();
+  </script>
+</body>
+</html>
